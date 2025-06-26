@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/charmbracelet/log"
@@ -8,9 +9,13 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/pahMelnik/video-to-ascii/internal/terminal"
 	"github.com/pahMelnik/video-to-ascii/internal/video"
+	"github.com/schollz/progressbar/v3"
 )
 
+// TODO: parameterize file name
+// TODO: parameterize log level
 func main() {
+	log.SetLevel(log.InfoLevel)
 	fileName := "./sample-data/IMG_1135.MOV"
 	terminalFD := os.Stdout.Fd()
 
@@ -19,12 +24,33 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for frameNum := 0; frameNum <= 200; frameNum += 5 {
-		reader := video.ExampleReadFrameAsJpeg(fileName, frameNum, termWidth, (termHeight-1)*2, false)
+	videoFramesCount, err := video.GetVideoFrameCount(fileName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	terminalFrames := make([]string, videoFramesCount)
+	bar := progressbar.Default(int64(videoFramesCount))
+
+	// PERF: lower speed at end as at start
+	for frameNum := range videoFramesCount {
+		// FIX: get all frames at once
+		reader := video.ReadFrameAsJpeg(fileName, frameNum, termWidth, (termHeight-1)*2, false)
 		img, err := imaging.Decode(reader)
 		if err != nil {
 			log.Fatal(err)
 		}
-		terminal.RenderImage(img)
+		terminalFrames[frameNum] = terminal.TerminalImage(img)
+		// increase progress bar
+		bar.Add(1)
+	}
+
+	// render frames
+	for frameNum, terminalFrame := range terminalFrames {
+		// clear previous frame
+		if frameNum > 0 {
+			terminal.ClearArea(termHeight, termWidth)
+		}
+		fmt.Print(terminalFrame)
 	}
 }
