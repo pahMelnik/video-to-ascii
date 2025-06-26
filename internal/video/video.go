@@ -48,10 +48,19 @@ type FFProbeResult struct {
 	Streams []struct {
 		NbReadPackets string `json:"nb_read_packets"`
 		RFameRate     string `json:"r_frame_rate"` // 10000/3001
+		Width         int    `json:"width"`
+		Height        int    `json:"height"`
 	} `json:"streams"`
 }
 
-func GetVideoInfo(inFileName string) (int, int, error) {
+type VideoInfo struct {
+	FrameCount int
+	FPS        int
+	Width      int
+	Height     int
+}
+
+func GetVideoInfo(inFileName string) (VideoInfo, error) {
 	cmd := exec.Command("ffprobe",
 		"-v", "error",
 		"-select_streams", "v:0",
@@ -62,18 +71,27 @@ func GetVideoInfo(inFileName string) (int, int, error) {
 	)
 	output, err := cmd.Output()
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to get video frame count: %w", err)
+		return VideoInfo{}, fmt.Errorf("failed to get video frame count: %w", err)
 	}
 	var result FFProbeResult
 	if err := json.Unmarshal(output, &result); err != nil {
-		return 0, 0, fmt.Errorf("failed to parse ffprobe output: %w", err)
+		return VideoInfo{}, fmt.Errorf("failed to parse ffprobe output: %w", err)
 	}
 	if len(result.Streams) == 0 {
-		return 0, 0, fmt.Errorf("no streams found in ffprobe output")
+		return VideoInfo{}, fmt.Errorf("no streams found in ffprobe output")
 	}
 	frameCount, _ := strconv.Atoi(result.Streams[0].NbReadPackets)
 	count, _ := strconv.Atoi(strings.Split(result.Streams[0].RFameRate, "/")[0])
 	duration, _ := strconv.Atoi(strings.Split(result.Streams[0].RFameRate, "/")[1])
 	frameRate := int(count / duration)
-	return frameCount, frameRate, nil
+	width := result.Streams[0].Width
+	height := result.Streams[0].Height
+
+	return VideoInfo{
+			FrameCount: frameCount,
+			FPS:        frameRate,
+			Width:      width,
+			Height:     height,
+		},
+		nil
 }
