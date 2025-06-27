@@ -1,9 +1,11 @@
 package terminal
 
 import (
-	"fmt"
 	"image"
 	"image/color"
+	"os"
+	"strconv"
+	"strings"
 )
 
 var lowerHalfBlock = "\u2584"
@@ -19,46 +21,47 @@ func get8bitcolor(color color.Color) (uint8, uint8, uint8) {
 
 // Возвращает строку для отрисовки картинки в терминале
 func TerminalImage(img image.Image) string {
-	var result string
-	var r, g, b uint8
-	for y := 0; y < img.Bounds().Dy(); y = y + 2 {
-		var str string
-		for x := range img.Bounds().Dx() {
-			r, g, b = get8bitcolor(img.At(x, y))
-			str += renderPixel(r, g, b, true)
-			r, g, b = get8bitcolor(img.At(x, y+1))
-			str += renderPixel(r, g, b, false)
+	var builder strings.Builder
+	height := img.Bounds().Dy()
+	width := img.Bounds().Dx()
+	for y := 0; y+1 < height; y = y + 2 {
+		for x := range width {
+			r1, g1, b1 := get8bitcolor(img.At(x, y))
+			r2, g2, b2 := get8bitcolor(img.At(x, y+1))
+
+			// Вверхний пиксель
+			builder.WriteString(backslash033)
+			builder.WriteString("[48;2;")
+			builder.WriteString(strconv.Itoa(int(r1)))
+			builder.WriteString(";")
+			builder.WriteString(strconv.Itoa(int(g1)))
+			builder.WriteString(";")
+			builder.WriteString(strconv.Itoa(int(b1)))
+			builder.WriteString("m")
+
+			// Нижний пиксель
+			builder.WriteString(backslash033)
+			builder.WriteString("[38;2;")
+			builder.WriteString(strconv.Itoa(int(r2)))
+			builder.WriteString(";")
+			builder.WriteString(strconv.Itoa(int(g2)))
+			builder.WriteString(";")
+			builder.WriteString(strconv.Itoa(int(b2)))
+			builder.WriteString("m")
+			builder.WriteString(lowerHalfBlock)
 		}
-		str += fmt.Sprintf("%s[0m%s", backslash033, backslashN)
-		result += str
+		// Перенос строки
+		builder.WriteString(backslash033)
+		builder.WriteString("[0m")
+		builder.WriteString(backslashN)
 	}
-	return result
+	return builder.String()
 }
 
 // Перемещает курсор вверх на количество строк и влево на количество колонок
 func ClearArea(rows, cols int) {
 	// Перемещает курсор влево на количество колонок
-	fmt.Printf("%s[%dD", backslash033, cols)
+	os.Stdout.WriteString(backslash033 + "[" + strconv.Itoa(cols) + "D")
 	// Перемещает курсор вверх на количество строк
-	fmt.Printf("%s[%dA", backslash033, rows)
-}
-
-// Возвращает строку для отрисовки пикселя в терминале
-func renderPixel(r, g, b uint8, upper bool) string {
-	var pixelStr string
-	if upper {
-		pixelStr = fmt.Sprintf(
-			"%s[48;2;%d;%d;%dm",
-			backslash033,
-			r, g, b,
-		)
-	} else {
-		pixelStr = fmt.Sprintf(
-			"%s[38;2;%d;%d;%dm%s",
-			backslash033,
-			r, g, b,
-			lowerHalfBlock,
-		)
-	}
-	return pixelStr
+	os.Stdout.WriteString(backslash033 + "[" + strconv.Itoa(rows) + "A")
 }
