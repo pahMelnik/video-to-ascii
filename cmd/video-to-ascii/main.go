@@ -20,9 +20,11 @@ import (
 func main() {
 	var debug bool
 	var saveFrames bool
+	var noShowVideo bool
 	var fileName string
 	flag.BoolVar(&debug, "debug", false, "Debug mode")
 	flag.BoolVar(&saveFrames, "save-frames", false, "Save frames to files")
+	flag.BoolVar(&noShowVideo, "no-show-video", false, "Do not show video")
 	flag.StringVar(&fileName, "file", "", "File name")
 	flag.Parse()
 
@@ -102,19 +104,21 @@ func main() {
 		terminalFrameBar.Add(1)
 	}
 
-	// render frames
-	// TODO: limit framerate to be same as in original video
-	// TODO: add function to get original framerate
-	msPerFrame := int64(1000 / videoInfo.FPS)
-	for frameNum, terminalFrame := range terminalFrames {
-		start := time.Now()
-		// clear previous frame
-		if frameNum > 0 {
-			terminal.ClearArea(termHeight, termWidth)
-		}
-		fmt.Print(terminalFrame)
-		if time.Since(start).Milliseconds() > msPerFrame {
-			time.Sleep(time.Duration(1000 * (msPerFrame - time.Since(start).Milliseconds())))
+	if !noShowVideo {
+		// render frames
+		// TODO: limit framerate to be same as in original video
+		// TODO: add function to get original framerate
+		msPerFrame := int64(1000 / videoInfo.FPS)
+		for frameNum, terminalFrame := range terminalFrames {
+			start := time.Now()
+			// clear previous frame
+			if frameNum > 0 {
+				terminal.ClearArea(termHeight, termWidth)
+			}
+			fmt.Print(terminalFrame)
+			if time.Since(start).Milliseconds() > msPerFrame {
+				time.Sleep(time.Duration(1000 * (msPerFrame - time.Since(start).Milliseconds())))
+			}
 		}
 	}
 }
