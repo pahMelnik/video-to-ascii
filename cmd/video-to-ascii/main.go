@@ -62,18 +62,18 @@ func main() {
 		log.Debugf("Video is horizontal")
 		videoOutputWidth = termWidth
 		videoOutputHeight = videoOutputWidth * videoInfo.Height / videoInfo.Width
-		if videoOutputHeight > termHeight {
-			videoOutputHeight = termHeight
-			videoOutputWidth = videoOutputHeight * videoInfo.Width / videoInfo.Height
-		}
 	} else {
 		log.Debugf("Video is vertical and terminal is horizontal")
-		videoOutputHeight = termHeight
+		videoOutputHeight = (termHeight - 1) * 2
 		videoOutputWidth = videoOutputHeight * videoInfo.Width / videoInfo.Height
-		if videoOutputWidth > termWidth {
-			videoOutputWidth = termWidth
-			videoOutputHeight = videoOutputWidth * videoInfo.Height / videoInfo.Width
-		}
+	}
+	if videoOutputHeight > termHeight {
+		videoOutputHeight = (termHeight - 1) * 2
+		videoOutputWidth = videoOutputHeight * videoInfo.Width / videoInfo.Height
+	}
+	if videoOutputWidth > termWidth {
+		videoOutputWidth = termWidth
+		videoOutputHeight = videoOutputWidth * videoInfo.Height / videoInfo.Width
 	}
 	log.Debugf("Output resolution: %dx%d", videoOutputWidth, videoOutputHeight)
 	d = utils.Gcd(videoOutputWidth, videoOutputHeight)
