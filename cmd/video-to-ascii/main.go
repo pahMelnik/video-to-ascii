@@ -106,9 +106,7 @@ func main() {
 
 	if !noShowVideo {
 		// render frames
-		// TODO: limit framerate to be same as in original video
-		// TODO: add function to get original framerate
-		msPerFrame := int64(1000 / videoInfo.FPS)
+		msPerFrame := time.Duration(1000/videoInfo.FPS) * time.Millisecond
 		for frameNum, terminalFrame := range terminalFrames {
 			start := time.Now()
 			// clear previous frame
@@ -116,8 +114,9 @@ func main() {
 				terminal.ClearArea(termHeight, termWidth)
 			}
 			fmt.Print(terminalFrame)
-			if time.Since(start).Milliseconds() > msPerFrame {
-				time.Sleep(time.Duration(1000 * (msPerFrame - time.Since(start).Milliseconds())))
+			elapsed := time.Since(start)
+			if elapsed < msPerFrame {
+				time.Sleep(msPerFrame - elapsed)
 			}
 		}
 	}
