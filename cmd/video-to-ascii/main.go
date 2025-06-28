@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/x/term"
+	"github.com/pahMelnik/video-to-ascii/internal/audio"
 	"github.com/pahMelnik/video-to-ascii/internal/decode"
 	"github.com/pahMelnik/video-to-ascii/internal/terminal"
 	"github.com/pahMelnik/video-to-ascii/internal/video"
@@ -16,8 +17,10 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-// TODO: tui file selector
-// TODO: add sound
+// TODO: tui interface
+// 1. перемотка видео
+// 2. выбор файла
+// 3. fancy рамочки
 func main() {
 	var debug bool
 	var saveFrames bool
@@ -35,6 +38,10 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 	terminalFD := os.Stdout.Fd()
+
+	/*******************/
+	/* Получение видео */
+	/*******************/
 
 	termWidth, termHeight, err := term.GetSize(terminalFD)
 	if err != nil {
@@ -74,10 +81,13 @@ func main() {
 
 	terminalFrames := make([]string, videoInfo.FrameCount)
 
-	reader := video.GetAllFramesAsJpeg(fileName, videoOutputWidth, videoOutputHeight, debug)
-	images, err := decode.ExtractJPEGsFromMJPEG(reader, videoInfo.FrameCount)
+	framesReader, err := video.GetAllFramesAsJpeg(fileName, videoOutputWidth, videoOutputHeight, debug)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to get frames: ", err)
+	}
+	images, err := decode.ExtractJPEGsFromMJPEG(framesReader, videoInfo.FrameCount)
+	if err != nil {
+		log.Fatal("Failed to extract images: ", err)
 	}
 	log.Debugf("Extracted %d/%d images", len(images), videoInfo.FrameCount)
 
@@ -97,17 +107,48 @@ func main() {
 		}
 	}
 
-	terminalFrameBar := progressbar.Default(int64(videoInfo.FrameCount), "Rendering frames")
+	terminalFrameBar := progressbar.Default(int64(videoInfo.FrameCount), "Processing frames")
 	for frameNum := range len(images) {
 		terminalFrames[frameNum] = terminal.TerminalImage(images[frameNum])
-		// increase progress bar
 		terminalFrameBar.Add(1)
 	}
 
+	/*******************/
+	/* Получение звука */
+	/*******************/
+
+	audioReader, err := video.GetAudioFromVideo(fileName, debug)
+	if err != nil {
+		log.Fatal("Failed to get audio: ", err)
+	}
+	audioPlayer, err := audio.GetAudioPlayer(audioReader)
+	if err != nil {
+		log.Fatal("Failed to get audio player: ", err)
+	}
+	defer audioPlayer.Close()
+
+	/***************/
+	/* Вывод видео */
+	/***************/
+
 	if !noShowVideo {
+		audioPlayer.Play()
 		// render frames
 		msPerFrame := time.Duration(1000/videoInfo.FPS) * time.Millisecond
-		renderBar := progressbar.Default(int64(videoInfo.FrameCount), "Rendering frames")
+		renderBar := progressbar.NewOptions64(
+			int64(videoInfo.FrameCount),
+			progressbar.OptionSetDescription("Rendering frames"),
+			progressbar.OptionShowTotalBytes(true),
+			progressbar.OptionShowIts(),
+			progressbar.OptionSetItsString("frames"),
+			progressbar.OptionOnCompletion(func() {
+				fmt.Print("\n")
+			}),
+			progressbar.OptionShowCount(),
+			progressbar.OptionFullWidth(),
+			progressbar.OptionSetRenderBlankState(false),
+		)
+
 		for frameNum, terminalFrame := range terminalFrames {
 			start := time.Now()
 			// clear previous frame

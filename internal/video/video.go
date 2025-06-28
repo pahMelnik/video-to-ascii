@@ -9,12 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/log"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
-// read frame as jpeg
-func GetFrameAsJpeg(inFileName string, frameNum, width, height int, showLog bool) io.Reader {
+// Получает кадр в формате jpeg
+func GetFrameAsJpeg(inFileName string, frameNum, width, height int, showLog bool) (io.Reader, error) {
 	ffmpeg.LogCompiledCommand = showLog
 	buf := bytes.NewBuffer(nil)
 	err := ffmpeg.Input(inFileName, ffmpeg.KwArgs{"loglevel": "debug"}).
@@ -24,13 +23,13 @@ func GetFrameAsJpeg(inFileName string, frameNum, width, height int, showLog bool
 		WithOutput(buf).
 		Run()
 	if err != nil {
-		log.Fatal(err, err.Error())
+		return nil, err
 	}
-	return buf
+	return buf, nil
 }
 
-// read all frames as jpeg
-func GetAllFramesAsJpeg(inFileName string, width, height int, showLog bool) io.Reader {
+// Получает все кадры в формате jpeg
+func GetAllFramesAsJpeg(inFileName string, width, height int, showLog bool) (io.Reader, error) {
 	ffmpeg.LogCompiledCommand = showLog
 	buf := bytes.NewBuffer(nil)
 	err := ffmpeg.Input(inFileName, ffmpeg.KwArgs{"loglevel": "debug"}).
@@ -39,9 +38,23 @@ func GetAllFramesAsJpeg(inFileName string, width, height int, showLog bool) io.R
 		WithOutput(buf).
 		Run()
 	if err != nil {
-		log.Fatal(err, err.Error())
+		return nil, err
 	}
-	return buf
+	return buf, nil
+}
+
+// Получает аудио поток из видео в формате mp3
+func GetAudioFromVideo(inFileName string, showLog bool) (io.Reader, error) {
+	ffmpeg.LogCompiledCommand = showLog
+	buf := bytes.NewBuffer(nil)
+	err := ffmpeg.Input(inFileName, ffmpeg.KwArgs{"loglevel": "debug"}).
+		Output("pipe:", ffmpeg.KwArgs{"q:a": "0", "map": "a", "f": "mp3"}).
+		WithOutput(buf).
+		Run()
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
 
 type FFProbeResult struct {
