@@ -58,10 +58,43 @@ func TerminalImage(img image.Image) string {
 	return builder.String()
 }
 
-// Перемещает курсор вверх на количество строк и влево на количество колонок
-func ClearArea(rows, cols int) {
-	// Перемещает курсор влево на количество колонок
-	os.Stdout.WriteString(backslash033 + "[" + strconv.Itoa(cols) + "D")
-	// Перемещает курсор вверх на количество строк
+// Перемещает курсор вверх на `rows` строк
+func MoveCursorUp(rows int) {
 	os.Stdout.WriteString(backslash033 + "[" + strconv.Itoa(rows) + "A")
+}
+
+// Перемещает курсор вниз на `rows` строк
+func MoveCursorDown(rows int) {
+	os.Stdout.WriteString(backslash033 + "[" + strconv.Itoa(rows) + "B")
+}
+
+// Перемещает курсор влево на `cols` колонок
+func MoveCursorLeft(cols int) {
+	os.Stdout.WriteString(backslash033 + "[" + strconv.Itoa(cols) + "D")
+}
+
+// Перемещает курсор вправо на `cols` колонок
+func MoveCursorRight(cols int) {
+	os.Stdout.WriteString(backslash033 + "[" + strconv.Itoa(cols) + "C")
+}
+
+// Перемещает курсор на позицию `row`, `col`
+func MoveCursorTo(row, col int) {
+	// Как будто вместо H можно использовать f
+	os.Stdout.WriteString(backslash033 + "[" + strconv.Itoa(row) + ";" + strconv.Itoa(col) + "H")
+}
+
+// Перемещает курсор в координаты 0,0
+func MoveCursorToHome() {
+	os.Stdout.WriteString(backslash033 + "[H")
+}
+
+// Перемещает курсор в начало следующей строки после перемещения курсора вниз на `rows` строк
+func MoveCursorToNextLineBegining(rows int) {
+	os.Stdout.WriteString(backslash033 + "[" + strconv.Itoa(rows) + "E")
+}
+
+// Перемещает курсор в начало предыдущей строки после перемещения курсора вверх на `rows` строк
+func MoveCursorToPreviousLineBegining(rows int) {
+	os.Stdout.WriteString(backslash033 + "[" + strconv.Itoa(rows) + "F")
 }

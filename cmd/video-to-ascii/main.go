@@ -17,6 +17,7 @@ import (
 )
 
 // TODO: tui file selector
+// TODO: add sound
 func main() {
 	var debug bool
 	var saveFrames bool
@@ -73,7 +74,6 @@ func main() {
 
 	terminalFrames := make([]string, videoInfo.FrameCount)
 
-	videoOutputHeight = (videoOutputHeight - 1) * 2
 	reader := video.GetAllFramesAsJpeg(fileName, videoOutputWidth, videoOutputHeight, debug)
 	images, err := decode.ExtractJPEGsFromMJPEG(reader, videoInfo.FrameCount)
 	if err != nil {
@@ -83,7 +83,7 @@ func main() {
 
 	if saveFrames {
 		for i, img := range images {
-			//save images to files
+			// save images to files
 			fileName := fmt.Sprintf("./sample-data/frame-%d.jpg", i)
 			f, err := os.Create(fileName)
 			if err != nil {
@@ -107,17 +107,19 @@ func main() {
 	if !noShowVideo {
 		// render frames
 		msPerFrame := time.Duration(1000/videoInfo.FPS) * time.Millisecond
+		renderBar := progressbar.Default(int64(videoInfo.FrameCount), "Rendering frames")
 		for frameNum, terminalFrame := range terminalFrames {
 			start := time.Now()
 			// clear previous frame
 			if frameNum > 0 {
-				terminal.ClearArea(termHeight, termWidth)
+				terminal.MoveCursorToPreviousLineBegining(videoOutputHeight / 2)
 			}
 			fmt.Print(terminalFrame)
 			elapsed := time.Since(start)
 			if elapsed < msPerFrame {
 				time.Sleep(msPerFrame - elapsed)
 			}
+			renderBar.Add(1)
 		}
 	}
 }
