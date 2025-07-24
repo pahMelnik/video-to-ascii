@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image"
 	"image/jpeg"
 	"os"
 	"time"
@@ -24,6 +25,17 @@ import (
 
 // TODO: Подгатавливать видео к воспроизведению в отдельном потоке
 // Начинать воспроизведение после завершения подготовки первого кадра
+type imageTask struct {
+	img      image.Image
+	frameNum int
+}
+
+func frameProcesser(tasks chan imageTask, result chan string) {
+	for task := range tasks {
+		result <- terminal.TerminalImage(task.img)
+	}
+}
+
 func main() {
 	var debug bool
 	var saveFrames bool
@@ -35,6 +47,12 @@ func main() {
 	flag.StringVar(&fileName, "file", "", "File name")
 	flag.Parse()
 
+	logFile, err := os.OpenFile("video-to-ascii.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
 	if debug {
 		log.SetLevel(log.DebugLevel)
 	} else {
@@ -82,8 +100,6 @@ func main() {
 	d = utils.Gcd(videoOutputWidth, videoOutputHeight)
 	log.Debugf("Output aspect ratio: %d:%d", videoOutputWidth/d, videoOutputHeight/d)
 
-	terminalFrames := make([]string, videoInfo.FrameCount)
-
 	framesReader, err := video.GetAllFramesAsJpeg(fileName, videoOutputWidth, videoOutputHeight, debug)
 	if err != nil {
 		log.Fatal("Failed to get frames: ", err)
@@ -110,11 +126,18 @@ func main() {
 		}
 	}
 
-	terminalFrameBar := progressbar.Default(int64(videoInfo.FrameCount), "Processing frames")
-	for frameNum := range len(images) {
-		terminalFrames[frameNum] = terminal.TerminalImage(images[frameNum])
-		terminalFrameBar.Add(1)
+	/*********************************/
+	/* Генерация терминальных кадров */
+	/*********************************/
+
+	frames := make(chan imageTask, videoInfo.FrameCount)
+	terminalFramesChan := make(chan string, videoInfo.FrameCount)
+	for i, img := range images {
+		frames <- imageTask{img: img, frameNum: i}
 	}
+	close(frames)
+
+	go frameProcesser(frames, terminalFramesChan)
 
 	/*******************/
 	/* Получение звука */
@@ -152,7 +175,8 @@ func main() {
 			progressbar.OptionSetRenderBlankState(false),
 		)
 
-		for frameNum, terminalFrame := range terminalFrames {
+		frameNum := 0
+		for terminalFrame := range terminalFramesChan {
 			start := time.Now()
 			// clear previous frame
 			if frameNum > 0 {
@@ -162,7 +186,10 @@ func main() {
 			elapsed := time.Since(start)
 			if elapsed < msPerFrame {
 				time.Sleep(msPerFrame - elapsed)
+			} else {
+				log.Errorf("Frame %d took %s", frameNum, elapsed)
 			}
+			frameNum++
 			renderBar.Add(1)
 		}
 	}
