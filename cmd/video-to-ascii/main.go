@@ -34,6 +34,8 @@ func frameProcesser(tasks chan imageTask, result chan string) {
 	for task := range tasks {
 		result <- terminal.TerminalImage(task.img)
 	}
+	log.Debug("Finish frame processing")
+	close(result)
 }
 
 func main() {
@@ -176,7 +178,12 @@ func main() {
 		)
 
 		frameNum := 0
-		for terminalFrame := range terminalFramesChan {
+		for {
+			terminalFrame, ok := <-terminalFramesChan
+			if !ok {
+				log.Debug("Channel terminalFramesChan reached end")
+				break
+			}
 			start := time.Now()
 			// clear previous frame
 			if frameNum > 0 {
